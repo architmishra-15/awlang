@@ -1,99 +1,92 @@
 #pragma once
-#include <cstddef>
 #include <string>
 #include <vector>
 
 typedef enum Token {
-  ASSIGNMENT,    // =
-  EQUAL,         // ==
-  NOT_EQUAL,     // !=
-  GREATER,       // >
-  LESSER,        // <
-  GREATER_EQUAL, // >=
-  LESSER_EQUAL,  // <=
-
-  // DataTypes
-  VARIABLE,
-  INTEGER,
-  STRING,
-  BOOL,
-  FLOAT,
-  CHARACTER,
-
-  // Keywords
-  STDOUT,
-  NEW,
-  TRUE,
-  FALSE,
-
-  // String interpolation
-  INTERPOLATION_START, // {
-  INTERPOLATION_END,   // }
-
-  // Special stdout syntax
-  STDOUT_START, // [
-  STDOUT_END,   // ]
-
-  // Identifiers and literals
-  IDENTIFIER, // variable names like 'name', 'age'
-
-  // Symbols
-  LBACKET,
-  RBRACKET,
-  LPAREN,
-  RPAREN,
-  LBRACE,
-  RBRACE,
-  COMMA,
-  DOT,
-  SEMICOLON,
-  COLON,
-  COMMENT,
-
-  // Arithematic Operators
-  ADD,
-  SUB,
-  MUL,
-  DIV,
-  MOD,
-
-  END_OF_FILE,
-  UNKNOWN,
+    ASSIGNMENT,   // =
+    EQUAL,        // ==
+    NOT_EQUAL,    // !=
+    GREATER,      // >
+    LESSER,       // <
+    GREATER_EQUAL, // >=
+    LESSER_EQUAL,  // <=
+    
+    VARIABLE,
+    INTEGER,
+    STRING,
+    BOOL,
+    FLOAT,
+    CHARACTER,
+    
+    STDOUT,
+    NEW,          // new keyword
+    BL,           // bl keyword
+    TRUE_VAL,     // True/true/1
+    FALSE_VAL,    // False/false/0
+    
+    IDENTIFIER,   // variable names
+    
+    LBRACKET,
+    RBRACKET,
+    LPAREN,
+    RPAREN,
+    LBRACE,
+    RBRACE,
+    
+    ADD,
+    SUB,
+    MUL,
+    DIV,
+    MOD,
+    
+    COMMA,
+    DOT,
+    SEMICOLON,
+    COLON,
+    COMMENT,
+    
+    // Array syntax
+    ARRAY_OPEN,   // [
+    ARRAY_CLOSE,  // ]
+    TYPE_OPEN,    // {
+    TYPE_CLOSE,   // }
+    
+    END_OF_FILE,
+    UNKNOWN,
 } Token;
 
-// Token data structure
-typedef struct TokenData{
-  Token type;
-  char *value; // The actual text (e.g., "123", "hello", "myVar")
-  int line;
-  int column;
+struct TokenData {
+    Token type;
+    std::string value;
+    int line;
+    int column;
+    
+    TokenData() : type(UNKNOWN), value(""), line(0), column(0) {}
+    TokenData(Token t, const std::string& v, int l, int c) 
+        : type(t), value(v), line(l), column(c) {}
+};
 
-  TokenData() : type(UNKNOWN), value(nullptr), line(0), column(0) {}
-  TokenData(Token t, char *v, int l, int c) : type(t), value(v), line(l), column(c) {}
-} TokenData;
+struct Lexer {
+    std::string source;
+    size_t current;
+    int line;
+    int column;
+    
+    Lexer(const std::string& src) : source(src), current(0), line(1), column(1) {}
+};
 
-// Lexer structure
-typedef struct Lexer {
-  std::string filename;
-  size_t current;
-  int line;
-  int column;
+struct Parser {
+    std::vector<TokenData> tokens;
+    int token_count;
+    int current;
+    int line, col;
+    
+    Parser() : token_count(0), current(0), line(1), col(1) {}
+    Parser(const std::vector<TokenData>& toks) 
+        : tokens(toks), token_count(toks.size()), current(0), line(1), col(1) {}
+};
 
-  Lexer(const std::string& src) : filename(src), current(0), line(1), column(1) {}
-} Lexer;
-
-// Parser structure
-typedef struct Parser {
-  std::vector<TokenData> tokens;
-  int token_count;
-  int current;
-  int line, col;
-
-  Parser() : token_count(0), current(0), line(1), col(1) {}
-  Parser(const std::vector<TokenData> &tokens) : tokens(tokens), token_count(tokens.size()), current(0), line(1), col(1) {}
-} Parser;
-
-
+// Lexer functions
 class LexerEngine {
 public:
     static std::vector<TokenData> tokenize(const std::string& source);
@@ -111,10 +104,11 @@ private:
     static TokenData readStdoutContent(Lexer& lexer);
     static TokenData readComment(Lexer& lexer);
     static TokenData nextToken(Lexer& lexer);
-}; // Lexer
+};
 
+// Parser functions
 class ParserEngine {
-  public:
+public:
     static void initParser(Parser& parser, const std::vector<TokenData>& tokens);
     static TokenData* currentToken(Parser& parser);
     static TokenData* peekToken(Parser& parser);
@@ -122,4 +116,4 @@ class ParserEngine {
     static bool matchToken(Parser& parser, Token expected);
     static bool consumeToken(Parser& parser, Token expected);
     static void parserError(Parser& parser, const std::string& message);
-}; // Parser
+};

@@ -30,7 +30,9 @@ int main(int argc, char** argv) {
 
     const char* filenames[] = {
       "src/main.cpp",
-      "src/parser.cpp"
+      "src/parser.cpp",
+      "src/ast.cpp",
+      // "src/lexer.cpp"
     };
 
     const char* flags[] = { NULL };

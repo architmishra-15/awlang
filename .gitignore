@@ -1,2 +1,6 @@
 *.exe*
 build/
+*.vscode/
+nob.h
+*.md
+!README.md

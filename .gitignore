@@ -4,3 +4,8 @@ build/
 nob.h
 *.md
 !README.md
+
+*.aw
+!tests/*.aw
+
+output*

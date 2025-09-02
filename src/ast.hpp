@@ -1,5 +1,6 @@
 #pragma once
 #include "parser.hpp"
+#include "error.hpp"
 #include <memory>
 #include <vector>
 
@@ -150,4 +151,6 @@ public:
     // Utility functions
     static std::string astTypeToString(ASTNodeType type);
     static void printAST(const ASTNode* node, int indent = 0);
+    static std::string astToString(const ASTNode* node, int indent);
+    static void buildASTString(const ASTNode* node, int indent, std::string &out);
 };

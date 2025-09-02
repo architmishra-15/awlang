@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include "error.hpp"
 
 typedef enum Token {
     ASSIGNMENT,   // =
@@ -26,8 +27,8 @@ typedef enum Token {
     
     IDENTIFIER,   // variable names
     
-    LBRACKET,
-    RBRACKET,
+    STDOPEN,     // [
+    STDCLOSE,    // ]
     LPAREN,
     RPAREN,
     LBRACE,
@@ -116,4 +117,5 @@ public:
     static bool matchToken(Parser& parser, Token expected);
     static bool consumeToken(Parser& parser, Token expected);
     static void parserError(Parser& parser, const std::string& message);
+    static std::string getSuggestionForToken(Token tokenType, const std::string& message);
 };

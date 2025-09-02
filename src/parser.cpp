@@ -54,6 +54,8 @@ std::string LexerEngine::tokenTypeToString(Token type) {
         case SUB: return "SUB";
         case MUL: return "MUL";
         case DIV: return "DIV";
+        case STDOPEN: return "STDOPEN";
+        case STDCLOSE: return "STDCLOSE";
         case LBRACE: return "LBRACE";
         case RBRACE: return "RBRACE";
         case COMMENT: return "COMMENT";
@@ -145,6 +147,9 @@ TokenData LexerEngine::readString(Lexer& lexer) {
     
     if (peek(lexer) == '"') {
         advance(lexer); // consume closing quote
+    } else {
+        g_errorHandler.addLexicalError("Unterminated string literal", line, column, 
+                                      "Add closing quote '\"' to end the string");
     }
     
     return TokenData(STRING, value, line, column);
@@ -153,6 +158,7 @@ TokenData LexerEngine::readString(Lexer& lexer) {
 TokenData LexerEngine::readStdoutContent(Lexer& lexer) {
     int line = lexer.line;
     int column = lexer.column;
+    
     
     advance(lexer); // consume '['
     
@@ -330,6 +336,12 @@ TokenData LexerEngine::nextToken(Lexer& lexer) {
             advance(lexer);
             return TokenData(COLON, ":", line, column);
         default:
+            std::string suggestion = "Remove this character or check if it's part of a valid token";
+            if (c == '@' || c == '#' || c == '$') {
+                suggestion = "This character is not valid in this language";
+            }
+            g_errorHandler.addLexicalError("Unexpected character '" + std::string(1, c) + "'", 
+                                          line, column, suggestion);
             advance(lexer);
             return TokenData(UNKNOWN, std::string(1, c), line, column);
     }
@@ -386,10 +398,39 @@ bool ParserEngine::consumeToken(Parser& parser, Token expected) {
 void ParserEngine::parserError(Parser& parser, const std::string& message) {
     TokenData* token = currentToken(parser);
     if (token) {
-        std::cout << "Parser Error at line " << token->line 
-                  << ", column " << token->column << ": " << message 
-                  << " (found: " << token->value << ")" << std::endl;
+        std::string fullMessage = message + " (found '" + token->value + "')";
+        std::string suggestion = getSuggestionForToken(token->type, message);
+        int endCol = token->column + (int)token->value.length() - 1;
+        g_errorHandler.addSyntaxError(fullMessage, token->line, token->column, suggestion, endCol);
     } else {
-        std::cout << "Parser Error: " << message << " (at end of input)" << std::endl;
+        g_errorHandler.addSyntaxError(message + " (at end of input)", parser.line, parser.col);
     }
+}
+
+std::string ParserEngine::getSuggestionForToken(Token tokenType, const std::string& message) {
+    if (message.find("Expected 'new'") != std::string::npos) {
+        return "Variable declarations must start with 'new' keyword";
+    }
+    if (message.find("Expected variable name") != std::string::npos) {
+        return "Provide a valid identifier after 'new'";
+    }
+    if (message.find("Expected type") != std::string::npos) {
+        return "Specify a type: 'string', 'int', 'float', or 'bool'";
+    }
+    if (message.find("Expected '='") != std::string::npos) {
+        return "Add '=' to assign a value to the variable";
+    }
+    if (message.find("Expected value") != std::string::npos) {
+        return "Provide a value after '='";
+    }
+    if (message.find("Expected '['") != std::string::npos) {
+        return "stdout statements require '[' to start the output content";
+    }
+    if (message.find("Expected ']'") != std::string::npos) {
+        return "Close the stdout statement with ']'";
+    }
+    if (message.find("Expected '}'") != std::string::npos) {
+        return "Close the variable interpolation with '}'";
+    }
+    return "";
 }

@@ -455,6 +455,156 @@ void ASTParser::printAST(const ASTNode* node, int indent) {
     }
 }
 
+std::string ASTParser::astToString(const ASTNode* node, int indent) {
+    std::string out;
+    out.reserve(1024); // pre-reserve to reduce reallocs for medium trees
+    buildASTString(node, indent, out);
+    return out;
+}
+
+// the worker that actually builds the string
+void ASTParser::buildASTString(const ASTNode* node, int indent, std::string &out) {
+    if (!node) return;
+
+    // indentation: two spaces per indent level (matches your current print)
+    out.append(static_cast<size_t>(indent) * 2, ' ');
+
+    // node type name
+    out += astTypeToString(node->type);
+
+    switch (node->type) {
+        case ASTNodeType::PROGRAM: {
+            const ProgramNode* program = static_cast<const ProgramNode*>(node);
+            out += " (" + std::to_string(program->statements.size()) + " statements)\n";
+            for (const auto& stmt : program->statements) {
+                buildASTString(stmt.get(), indent + 1, out);
+            }
+            break;
+        }
+
+        case ASTNodeType::VARIABLE_DECLARATION: {
+            const VariableDeclarationNode* varDecl = static_cast<const VariableDeclarationNode*>(node);
+            out += " '";
+            out += varDecl->varName;
+            out += "' type=";
+            out += LexerEngine::tokenTypeToString(varDecl->varType);
+            out += '\n';
+            buildASTString(varDecl->value.get(), indent + 1, out);
+            break;
+        }
+
+        case ASTNodeType::STDOUT_STATEMENT: {
+            const StdoutStatementNode* stdoutStmt = static_cast<const StdoutStatementNode*>(node);
+            out += '\n'; // print had a newline here
+            buildASTString(stdoutStmt->content.get(), indent + 1, out);
+            break;
+        }
+
+        case ASTNodeType::STRING_INTERPOLATION: {
+            const StringInterpolationNode* stringInterp = static_cast<const StringInterpolationNode*>(node);
+            out += " [" + std::to_string(stringInterp->parts.size()) + " parts, "
+                        + std::to_string(stringInterp->expressions.size()) + " expressions]\n";
+
+            size_t maxItems = std::max(stringInterp->parts.size(), stringInterp->expressions.size());
+            for (size_t i = 0; i < maxItems; ++i) {
+                if (i < stringInterp->parts.size()) {
+                    out.append(static_cast<size_t>(indent + 1) * 2, ' ');
+                    out += "TEXT_PART \"";
+                    out += stringInterp->parts[i];
+                    out += "\"\n";
+                }
+                if (i < stringInterp->expressions.size()) {
+                    buildASTString(stringInterp->expressions[i].get(), indent + 1, out);
+                }
+            }
+            break;
+        }
+
+        case ASTNodeType::BINARY_OPERATION: {
+            const BinaryOperationNode* binaryOp = static_cast<const BinaryOperationNode*>(node);
+            out += " ";
+            out += LexerEngine::tokenTypeToString(binaryOp->op);
+            out += '\n';
+            buildASTString(binaryOp->left.get(), indent + 1, out);
+            buildASTString(binaryOp->right.get(), indent + 1, out);
+            break;
+        }
+
+        case ASTNodeType::IDENTIFIER: {
+            const IdentifierNode* identifier = static_cast<const IdentifierNode*>(node);
+            out += " '";
+            out += identifier->name;
+            out += "'\n";
+            break;
+        }
+
+        case ASTNodeType::LITERAL_INT: {
+            const LiteralIntNode* intLiteral = static_cast<const LiteralIntNode*>(node);
+            out += " ";
+            out += std::to_string(intLiteral->value);
+            out += '\n';
+            break;
+        }
+
+        case ASTNodeType::LITERAL_FLOAT: {
+            const LiteralFloatNode* floatLiteral = static_cast<const LiteralFloatNode*>(node);
+            out += " ";
+            out += std::to_string(floatLiteral->value);
+            out += '\n';
+            break;
+        }
+
+        case ASTNodeType::LITERAL_STRING: {
+            const LiteralStringNode* stringLiteral = static_cast<const LiteralStringNode*>(node);
+            out += " \"";
+            out += stringLiteral->value;
+            out += "\"\n";
+            break;
+        }
+
+        case ASTNodeType::LITERAL_BOOL: {
+            const LiteralBoolNode* boolLiteral = static_cast<const LiteralBoolNode*>(node);
+            out += " ";
+            out += (boolLiteral->value ? "true" : "false");
+            out += '\n';
+            break;
+        }
+
+        case ASTNodeType::ARRAY_LITERAL: {
+            const ArrayLiteralNode* arrayLiteral = static_cast<const ArrayLiteralNode*>(node);
+            out += " [" + std::to_string(arrayLiteral->elements.size()) + " elements]\n";
+            for (const auto& element : arrayLiteral->elements) {
+                buildASTString(element.get(), indent + 1, out);
+            }
+            break;
+        }
+
+        case ASTNodeType::ARRAY_DECLARATION: {
+            const ArrayDeclarationNode* arrayDecl = static_cast<const ArrayDeclarationNode*>(node);
+            out += " '";
+            out += arrayDecl->varName;
+            out += "'";
+            if (arrayDecl->hasType) {
+                out += " type=";
+                out += LexerEngine::tokenTypeToString(arrayDecl->elementType);
+            }
+            if (arrayDecl->hasSize) {
+                out += " size=";
+                out += std::to_string(arrayDecl->size);
+            }
+            out += '\n';
+            if (arrayDecl->initializer) {
+                buildASTString(arrayDecl->initializer.get(), indent + 1, out);
+            }
+            break;
+        }
+
+        default:
+            out += '\n';
+            break;
+    }
+}
+
 std::unique_ptr<ArrayLiteralNode> ASTParser::parseArrayLiteral(Parser& parser) {
     TokenData* token = ParserEngine::currentToken(parser);
     int line = token->line, column = token->column;

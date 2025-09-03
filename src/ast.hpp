@@ -153,4 +153,5 @@ public:
     static void printAST(const ASTNode* node, int indent = 0);
     static std::string astToString(const ASTNode* node, int indent);
     static void buildASTString(const ASTNode* node, int indent, std::string &out);
+    static void synchronizeParser(Parser& parser);
 };

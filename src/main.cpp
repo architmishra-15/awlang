@@ -1,6 +1,7 @@
 #include "ast.hpp"
 #include "parser.hpp"
 #include "error.hpp"
+#include "semantic.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -70,13 +71,28 @@ int main(int argc, char **argv) {
   std::cout << "Generating AST...\n";
   auto ast = ASTParser::parseProgram(parser);
 
-  // Check for any errors (lexical or syntax)
+  // Check for syntax errors before proceeding
   if (g_errorHandler.hasAnyErrors()) {
     g_errorHandler.printErrors();
     return 1;
   }
 
-  if (ast) {
+  if (!ast) {
+    std::cerr << "\033[31m\033[1m✗ AST generation failed!\033[0m" << std::endl;
+    return 1;
+  }
+
+  std::cout << "Performing semantic analysis...\n";
+  SemanticAnalyzer semanticAnalyzer;
+  bool semanticSuccess = semanticAnalyzer.analyzeProgram(ast.get());
+
+  // Check for semantic errors
+  if (g_errorHandler.hasAnyErrors()) {
+    g_errorHandler.printErrors();
+    return 1;
+  }
+
+  if (semanticSuccess) {
     std::cout << "\033[32m\033[1m✓ Compilation successful!\033[0m" << std::endl;
     
     // Only write output files if compilation was successful
@@ -94,7 +110,7 @@ int main(int argc, char **argv) {
       std::cerr << "\033[31mFailed to write AST data\033[0m" << std::endl;
     }
   } else {
-    std::cerr << "\033[31m\033[1m✗ AST generation failed!\033[0m" << std::endl;
+    std::cerr << "\033[31m\033[1m✗ Semantic analysis failed!\033[0m" << std::endl;
     return 1;
   }
 

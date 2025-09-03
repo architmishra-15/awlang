@@ -4,7 +4,7 @@ stdout [Hello World!]
 ;; Variables
 new name string = "John Doe"
 new age int = 100
-bl is_alive = true
+new is_alive bool = true
 stdout [{name} is {age} years old and is {is_alive}]
 
 ;; this will be a comment

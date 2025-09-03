@@ -13,8 +13,8 @@ std::unique_ptr<ProgramNode> ASTParser::parseProgram(Parser& parser) {
         if (stmt) {
             program->statements.push_back(std::move(stmt));
         } else {
-            // Skip invalid tokens and continue
-            ParserEngine::advanceParser(parser);
+            // Better error recovery: skip to next statement boundary
+            synchronizeParser(parser);
         }
     }
     
@@ -184,11 +184,9 @@ std::unique_ptr<StringInterpolationNode> ASTParser::parseStringInterpolation(Par
     
     while (token && token->type != ARRAY_CLOSE && token->type != END_OF_FILE) {
         if (token->type == TYPE_OPEN) { // '{'
-            // Save current text part if any
-            if (!currentTextPart.empty()) {
-                interpolationNode->parts.push_back(currentTextPart);
-                currentTextPart.clear();
-            }
+            // Save current text part if any (even if empty, to maintain order)
+            interpolationNode->parts.push_back(currentTextPart);
+            currentTextPart.clear();
             
             ParserEngine::advanceParser(parser); // consume '{'
             
@@ -219,10 +217,8 @@ std::unique_ptr<StringInterpolationNode> ASTParser::parseStringInterpolation(Par
         }
     }
     
-    // Save any remaining text part
-    if (!currentTextPart.empty()) {
-        interpolationNode->parts.push_back(currentTextPart);
-    }
+    // Always save the final text part (even if empty) to maintain proper interleaving
+    interpolationNode->parts.push_back(currentTextPart);
     
     return interpolationNode;
 }
@@ -372,15 +368,20 @@ void ASTParser::printAST(const ASTNode* node, int indent) {
             std::cout << " [" << stringInterp->parts.size() << " parts, " 
                       << stringInterp->expressions.size() << " expressions]" << std::endl;
             
-            // Print text parts and expressions interleaved
-            size_t maxItems = std::max(stringInterp->parts.size(), stringInterp->expressions.size());
-            for (size_t i = 0; i < maxItems; i++) {
-                if (i < stringInterp->parts.size()) {
+            // Print text parts and expressions properly interleaved
+            // Pattern: TEXT_PART, EXPR, TEXT_PART, EXPR, TEXT_PART...
+            size_t exprIndex = 0;
+            for (size_t i = 0; i < stringInterp->parts.size(); i++) {
+                // Print text part (even if empty)
+                if (!stringInterp->parts[i].empty()) {
                     for (int j = 0; j < indent + 1; j++) std::cout << "  ";
                     std::cout << "TEXT_PART \"" << stringInterp->parts[i] << "\"" << std::endl;
                 }
-                if (i < stringInterp->expressions.size()) {
-                    printAST(stringInterp->expressions[i].get(), indent + 1);
+                
+                // Print expression if available
+                if (exprIndex < stringInterp->expressions.size()) {
+                    printAST(stringInterp->expressions[exprIndex].get(), indent + 1);
+                    exprIndex++;
                 }
             }
             break;
@@ -438,6 +439,9 @@ void ASTParser::printAST(const ASTNode* node, int indent) {
             std::cout << " '" << arrayDecl->varName << "'";
             if (arrayDecl->hasType) {
                 std::cout << " type=" << LexerEngine::tokenTypeToString(arrayDecl->elementType);
+            } else if (arrayDecl->initializer) {
+                // Show inferred type from first element
+                std::cout << " type=inferred";
             }
             if (arrayDecl->hasSize) {
                 std::cout << " size=" << arrayDecl->size;
@@ -587,6 +591,9 @@ void ASTParser::buildASTString(const ASTNode* node, int indent, std::string &out
             if (arrayDecl->hasType) {
                 out += " type=";
                 out += LexerEngine::tokenTypeToString(arrayDecl->elementType);
+            } else if (arrayDecl->initializer) {
+                // Show inferred type from first element
+                out += " type=inferred";
             }
             if (arrayDecl->hasSize) {
                 out += " size=";
@@ -742,4 +749,20 @@ std::unique_ptr<ArrayDeclarationNode> ASTParser::parseArrayDeclaration(Parser& p
     }
     
     return arrayDecl;
+}
+
+void ASTParser::synchronizeParser(Parser& parser) {
+    // Skip tokens until we find a statement boundary
+    while (ParserEngine::currentToken(parser) && 
+           ParserEngine::currentToken(parser)->type != END_OF_FILE) {
+        
+        TokenData* token = ParserEngine::currentToken(parser);
+        
+        // Stop at statement starters
+        if (token->type == NEW || token->type == BL || token->type == STDOUT) {
+            break;
+        }
+        
+        ParserEngine::advanceParser(parser);
+    }
 }

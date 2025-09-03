@@ -7,7 +7,8 @@ enum class ErrorType {
     LEXICAL_ERROR,
     SYNTAX_ERROR,
     SEMANTIC_ERROR,
-    CODEGEN_ERROR
+    CODEGEN_ERROR,
+    WARNING
 };
 
 struct CompilerError {
@@ -49,6 +50,7 @@ private:
     std::vector<std::string> sourceLines;  // Store source lines for context
     std::string currentFilename;
     bool hasErrors;
+    bool hasWarnings;
     
     void printErrorHeader(const CompilerError& error) const;
     void printSourceContext(const CompilerError& error) const;
@@ -57,7 +59,7 @@ private:
     std::string getErrorTypeColor(ErrorType type) const;
     
 public:
-    ErrorHandler() : hasErrors(false) {}
+    ErrorHandler() : hasErrors(false), hasWarnings(false) {}
     
     void setSourceContent(const std::string& content, const std::string& filename);
     void addError(ErrorType type, const std::string& message, int line, int column, 
@@ -68,9 +70,13 @@ public:
                        const std::string& suggestion = "", int endColumn = -1);
     void addSemanticError(const std::string& message, int line, int column, 
                          const std::string& suggestion = "", int endColumn = -1);
+    void addWarning(const std::string& message, int line, int column, 
+                   const std::string& suggestion = "", int endColumn = -1);
     
     bool hasAnyErrors() const { return hasErrors; }
-    size_t getErrorCount() const { return errors.size(); }
+    bool hasAnyWarnings() const { return hasWarnings; }
+    size_t getErrorCount() const;
+    size_t getWarningCount() const;
     
     void printErrors() const;
     void clear();

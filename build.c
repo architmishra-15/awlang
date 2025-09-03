@@ -33,6 +33,7 @@ int main(int argc, char** argv) {
       "src/parser.cpp",
       "src/ast.cpp",
       "src/error.cpp",
+      "src/semantic.cpp",
       // "src/lexer.cpp"
     };
 

@@ -46,6 +46,7 @@ std::string LexerEngine::tokenTypeToString(Token type) {
         case INTEGER: return "INTEGER";
         case FLOAT: return "FLOAT";
         case STRING: return "STRING";
+        case BOOL: return "BOOL";
         case TRUE_VAL: return "TRUE";
         case FALSE_VAL: return "FALSE";
         case ASSIGNMENT: return "ASSIGNMENT";

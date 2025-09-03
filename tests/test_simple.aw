@@ -1,0 +1,1 @@
+new x string = "hello"

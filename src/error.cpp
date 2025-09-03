@@ -1,6 +1,5 @@
 #include "error.hpp"
 #include <sstream>
-#include <iomanip>
 #include <algorithm>
 
 // Global error handler instance
@@ -25,7 +24,12 @@ void ErrorHandler::setSourceContent(const std::string& content, const std::strin
 void ErrorHandler::addError(ErrorType type, const std::string& message, int line, int column, 
                            const std::string& suggestion, int endColumn) {
     errors.emplace_back(type, message, line, column, currentFilename, suggestion, endColumn);
-    hasErrors = true;
+    
+    if (type == ErrorType::WARNING) {
+        hasWarnings = true;
+    } else {
+        hasErrors = true;
+    }
 }
 
 void ErrorHandler::addLexicalError(const std::string& message, int line, int column, 
@@ -43,12 +47,18 @@ void ErrorHandler::addSemanticError(const std::string& message, int line, int co
     addError(ErrorType::SEMANTIC_ERROR, message, line, column, suggestion, endColumn);
 }
 
+void ErrorHandler::addWarning(const std::string& message, int line, int column, 
+                             const std::string& suggestion, int endColumn) {
+    addError(ErrorType::WARNING, message, line, column, suggestion, endColumn);
+}
+
 std::string ErrorHandler::getErrorTypeString(ErrorType type) const {
     switch (type) {
         case ErrorType::LEXICAL_ERROR: return "lexical error";
         case ErrorType::SYNTAX_ERROR: return "syntax error";
         case ErrorType::SEMANTIC_ERROR: return "semantic error";
         case ErrorType::CODEGEN_ERROR: return "codegen error";
+        case ErrorType::WARNING: return "warning";
         default: return "unknown error";
     }
 }
@@ -57,14 +67,17 @@ std::string ErrorHandler::getErrorTypeColor(ErrorType type) const {
     switch (type) {
         case ErrorType::LEXICAL_ERROR: return Colors::RED;
         case ErrorType::SYNTAX_ERROR: return Colors::RED;
-        case ErrorType::SEMANTIC_ERROR: return Colors::YELLOW;
+        case ErrorType::SEMANTIC_ERROR: return Colors::RED;
         case ErrorType::CODEGEN_ERROR: return Colors::MAGENTA;
+        case ErrorType::WARNING: return Colors::YELLOW;
         default: return Colors::RED;
     }
 }
 
 void ErrorHandler::printErrorHeader(const CompilerError& error) const {
-    std::cerr << Colors::BOLD << getErrorTypeColor(error.type) << "error" << Colors::RESET 
+    std::string errorLabel = (error.type == ErrorType::WARNING) ? "warning" : "error";
+    
+    std::cerr << Colors::BOLD << getErrorTypeColor(error.type) << errorLabel << Colors::RESET 
               << Colors::BOLD << ": " << Colors::RESET << error.message << std::endl;
     
     std::cerr << Colors::BLUE << "  --> " << Colors::RESET;
@@ -152,15 +165,36 @@ void ErrorHandler::printErrors() const {
     
     // Print summary
     std::cerr << std::endl;
-    std::cerr << Colors::RED << Colors::BOLD << "error" << Colors::RESET << ": could not compile `";
-    if (!currentFilename.empty()) {
-        std::cerr << currentFilename;
-    } else {
-        std::cerr << "input";
+    
+    size_t errorCount = getErrorCount();
+    size_t warningCount = getWarningCount();
+    
+    if (errorCount > 0) {
+        std::cerr << Colors::RED << Colors::BOLD << "error" << Colors::RESET << ": could not compile `";
+        if (!currentFilename.empty()) {
+            std::cerr << currentFilename;
+        } else {
+            std::cerr << "input";
+        }
+        std::cerr << "` due to " << errorCount << " previous error";
+        if (errorCount > 1) std::cerr << "s";
+        
+        if (warningCount > 0) {
+            std::cerr << " and " << warningCount << " warning";
+            if (warningCount > 1) std::cerr << "s";
+        }
+        std::cerr << std::endl;
+    } else if (warningCount > 0) {
+        std::cerr << Colors::YELLOW << Colors::BOLD << "warning" << Colors::RESET << ": `";
+        if (!currentFilename.empty()) {
+            std::cerr << currentFilename;
+        } else {
+            std::cerr << "input";
+        }
+        std::cerr << "` compiled with " << warningCount << " warning";
+        if (warningCount > 1) std::cerr << "s";
+        std::cerr << std::endl;
     }
-    std::cerr << "` due to " << errors.size() << " previous error";
-    if (errors.size() > 1) std::cerr << "s";
-    std::cerr << std::endl;
 }
 
 void ErrorHandler::clear() {
@@ -168,4 +202,25 @@ void ErrorHandler::clear() {
     sourceLines.clear();
     currentFilename.clear();
     hasErrors = false;
+    hasWarnings = false;
+}
+
+size_t ErrorHandler::getErrorCount() const {
+    size_t count = 0;
+    for (const auto& error : errors) {
+        if (error.type != ErrorType::WARNING) {
+            count++;
+        }
+    }
+    return count;
+}
+
+size_t ErrorHandler::getWarningCount() const {
+    size_t count = 0;
+    for (const auto& error : errors) {
+        if (error.type == ErrorType::WARNING) {
+            count++;
+        }
+    }
+    return count;
 }
